@@ -183,6 +183,14 @@ class TestTypes(unittest.TestCase):
             ),
         )
 
+    def test_array_function(self):
+        self.assertEqual(
+            ([1, 2, 3, 4], 5 * 2),
+            binread.Array(element=binread.U16, terminator=b"\x00\x00").read_field(
+                struct.pack("6H", 1, 2, 3, 4, 0, 10), {}
+            ),
+        )
+
     def test_array_struct(self):
         value = binread.Array(
             binread.Format({"array": binread.Array(binread.U16, length=5)}),

@@ -116,7 +116,7 @@ class Format(FieldType):
 
     def read(
         self, data: bytes, allow_leftover: bool = False, return_bytes: bool = False
-    ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
+    ) -> Dict[str, Any]:
         result = {}
         total = 0
         for name, field in self.fields.items():
@@ -128,6 +128,6 @@ class Format(FieldType):
             raise Exception("left over bytes")
 
         if return_bytes:
-            return result, total
+            return result, total # type: ignore
         else:
             return result
