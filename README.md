@@ -1,11 +1,17 @@
-# Binread 📖
-
-![PyPI - Downloads](https://img.shields.io/pypi/dm/binread)
-![GitHub issues](https://img.shields.io/github/issues/remopas/binread)
-![PyPI - License](https://img.shields.io/pypi/l/binread)
-![Read the Docs (version)](https://img.shields.io/readthedocs/binread/stable)
-
-Parse any binary format.
+<h1 align="center">Binread</h1>
+ 
+ <h3 align="center">
+Parse any binary format 📖
+</h3>
+<br> 
+ 
+<p align="center">
+<a href="https://binread.readthedocs.io/en/latest"><img src="https://img.shields.io/readthedocs/binread/stable"></a>
+<a href="https://github.com/remopas/binread/issues"><img src="https://img.shields.io/github/issues/remopas/binread"></a>
+<a href="https://pypi.org/project/binread/"><img src="https://img.shields.io/pypi/l/binread"></a>
+<a href="https://pypi.org/project/binread/"><img src="https://img.shields.io/pypi/dm/binread"></a>
+</p>
+  
 
 ## Installation
 
