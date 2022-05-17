@@ -1,6 +1,5 @@
 # Binread 📖
 
-![GitHub branch checks state](https://img.shields.io/github/checks-status/remopas/binread/master)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/binread)
 ![GitHub issues](https://img.shields.io/github/issues/remopas/binread)
 ![PyPI - License](https://img.shields.io/pypi/l/binread)
