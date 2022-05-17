@@ -1,5 +1,5 @@
-from .format import Format, Integer, FieldType, Float
-from typing import Any, Tuple, Type, Union, Dict
+from .format import Integer, FieldType, Float
+from typing import Any, Callable, Tuple, Type, Union, Dict
 
 
 class U8(Integer):
@@ -73,7 +73,8 @@ class Array(FieldType):
     def __init__(
         self,
         element: Union[FieldType, Type[FieldType]],
-        length: Union[int, str, None] = None,
+        length: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
+        length_bytes: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
         terminator: Union[bytes, None] = None,
         *args,
         **kwargs,
@@ -88,6 +89,7 @@ class Array(FieldType):
         super().__init__(self.element._byteorder, *args, **kwargs)
 
         self._length = length
+        self._length_bytes = length_bytes
         self._terminator = terminator
 
     def length(self, fields: Dict[str, Any]) -> int:
@@ -95,6 +97,18 @@ class Array(FieldType):
             return self._length
         elif isinstance(self._length, str):
             return fields[self._length]
+        elif isinstance(self._length, Callable):
+            return self._length(fields)
+        else:
+            raise Exception(f"invalid length specifier '{self._length}'")
+
+    def length_bytes(self, fields: Dict[str, Any]) -> int:
+        if isinstance(self._length_bytes, int):
+            return self._length_bytes
+        elif isinstance(self._length_bytes, str):
+            return fields[self._length_bytes]
+        elif isinstance(self._length_bytes, Callable):
+            return self._length_bytes(fields)
         else:
             raise Exception(f"invalid length specifier '{self._length}'")
 
@@ -125,14 +139,31 @@ class Array(FieldType):
 
         return result, total
 
+    def extract_with_length_bytes(
+        self, data: bytes, fields: Dict[str, Any], length_bytes: int
+    ) -> Tuple[Any, int]:
+        result = []
+        total = 0
+        while total < length_bytes:
+            value, bytes_read = self.element.read_field(data, {})
+            result.append(value)
+            data = data[bytes_read:]
+            total += bytes_read
+        return result, total
+
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         if self._length is not None:
             length = self.length(fields)
             return self.extract_with_length(data, fields, length)
         elif self._terminator is not None:
             return self.extract_with_terminator(data, fields, self._terminator)
+        elif self._length_bytes:
+            length_bytes = self.length_bytes(fields)
+            return self.extract_with_length_bytes(data, fields, length_bytes)
         else:
-            raise Exception("array must either have a length or a terminator")
+            raise Exception(
+                "array must either have a length, length_bytes or a terminator"
+            )
 
 
 class String(Array):
@@ -148,5 +179,3 @@ class String(Array):
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         value, bytes_read = super().extract(data, fields)
         return bytes(value).decode(self.encoding), bytes_read
-
-
