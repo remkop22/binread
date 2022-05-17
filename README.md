@@ -10,7 +10,7 @@ pip install binread
 
 ## Usage
 
-Just create a dictionary mapping for each field and it's type and pass it to `Format`. 
+Just create a dictionary mapping for each field and it's type and construct a `Format` object, then pass some bytes to `Format.read`:
 
 ```python
 from binread import Format, U16, Array
@@ -28,6 +28,8 @@ print(result)
 #   "field1": [1, 2, 3, 4, 5]
 # }
 ```
+
+`Format.read` expects a `bytes` object and by default raises an exception if there are bytes left over. Set `allow_leftover=True` to disable this behaviour. If leftover bytes are allowed, the number of bytes that where read can be inspected with `return_bytes=True`.
 
 ### Arrays
 
