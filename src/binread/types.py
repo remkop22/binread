@@ -169,8 +169,8 @@ class Array(FieldType):
 class String(Array):
     def __init__(
         self,
-        encoding: str = "utf-8",
         *args,
+        encoding: str = "utf-8",
         **kwargs,
     ):
         super().__init__(U8, *args, **kwargs)
