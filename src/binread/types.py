@@ -1,4 +1,4 @@
-from .format import Integer, FieldType, Float
+from .format import Format, Integer, FieldType, Float
 from typing import Any, Tuple, Type, Union, Dict
 
 
@@ -104,7 +104,7 @@ class Array(FieldType):
         result = [None] * length
         total = 0
         for i in range(length):
-            result[i], bytes_read = self.element.read(data, {})
+            result[i], bytes_read = self.element.read_field(data, {})
             data = data[bytes_read:]
             total += bytes_read
         return result, total
@@ -116,13 +116,12 @@ class Array(FieldType):
         total = 0
 
         while not data.startswith(terminator):
-            value, bytes_read = self.element.read(data, {})
+            value, bytes_read = self.element.read_field(data, {})
             result.append(value)
             data = data[bytes_read:]
             total += bytes_read
 
         total += len(terminator)
-        print(total)
 
         return result, total
 
@@ -134,3 +133,20 @@ class Array(FieldType):
             return self.extract_with_terminator(data, fields, self._terminator)
         else:
             raise Exception("array must either have a length or a terminator")
+
+
+class String(Array):
+    def __init__(
+        self,
+        encoding: str = "utf-8",
+        *args,
+        **kwargs,
+    ):
+        super().__init__(U8, *args, **kwargs)
+        self.encoding = encoding
+
+    def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+        value, bytes_read = super().extract(data, fields)
+        return bytes(value).decode(self.encoding), bytes_read
+
+

@@ -30,7 +30,7 @@ class FieldType(ABC):
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         pass
 
-    def read(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+    def read_field(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         value, size = self.extract(data, fields)
 
         if self.to:
@@ -99,25 +99,35 @@ class Float(FieldType):
         return *unpack(char, data[: self._size]), self._size
 
 
-class Format:
-    def __init__(self, fields: Dict[str, Union[FieldType, type]]):
+class Format(FieldType):
+    def __init__(self, fields: Dict[str, Union[FieldType, type]], *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.fields: dict[str, FieldType] = {}
 
         for name, field in fields.items():
             if isinstance(field, FieldType):
                 self.fields[name] = field
             elif issubclass(field, FieldType) and field != FieldType:
-                self.fields[name] = field()
+                self.fields[name] = field()  # type: ignore
 
-    def read(self, data: bytes, allow_leftover: bool = False) -> Dict[str, Any]:
+    def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+        value, bytes_read = self.read(data, allow_leftover=True, return_bytes=True)
+        return value, bytes_read  # type: ignore
+
+    def read(
+        self, data: bytes, allow_leftover: bool = False, return_bytes: bool = False
+    ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
         result = {}
+        total = 0
         for name, field in self.fields.items():
-            result[name], bytes_read = field.read(data, result)
+            result[name], bytes_read = field.read_field(data, result)
             data = data[bytes_read:]
+            total += bytes_read
 
         if len(data) != 0 and not allow_leftover:
-            print(data)
-            print(result)
             raise Exception("left over bytes")
 
-        return result
+        if return_bytes:
+            return result, total
+        else:
+            return result
