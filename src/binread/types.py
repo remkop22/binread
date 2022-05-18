@@ -1,4 +1,4 @@
-from .format import Integer, FieldType, Float
+from .format import Integer, FieldType, Float, NotEnoughBytes
 from typing import Any, Callable, Iterable, Tuple as TupleType, Type, Union, Dict
 
 
@@ -165,6 +165,35 @@ class Array(FieldType):
             raise Exception(
                 "array must either have a length, length_bytes or a terminator"
             )
+
+
+class Bytes(Array):
+    def __init__(
+        self,
+        length: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
+        terminator: Union[bytes, None] = None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(U8, length, terminator=terminator, *args, **kwargs)
+
+    def extract_with_length(
+        self, data: bytes, fields: Dict[str, Any], length: int
+    ) -> TupleType[Any, int]:
+        if length > len(data):
+            raise NotEnoughBytes()
+
+        return data[:length], length
+
+    def extract_with_terminator(
+        self, data: bytes, fields: Dict[str, Any], terminator: bytes
+    ) -> TupleType[Any, int]:
+        length = data.find(terminator)
+
+        if length == -1:
+            raise NotEnoughBytes()
+
+        return data[:length], length + len(terminator)
 
 
 class Tuple(FieldType):
