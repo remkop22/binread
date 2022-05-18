@@ -32,10 +32,11 @@ class FieldType(ABC):
 
     def __init__(
         self,
-        byteorder: ByteOrder = "native",
+        byteorder: Optional[ByteOrder] = None,
         to: Optional[Callable] = None,
     ):
-        self._byteorder: ByteOrder = byteorder
+        self._byteorder: Optional[ByteOrder] = byteorder
+        self._default_byteorder: ByteOrder = "native"
         self.to = to
 
     @abstractmethod
@@ -64,21 +65,20 @@ class FieldType(ABC):
         return value, size
 
     def byteorder(self) -> Literal["little", "big"]:
-        if self._byteorder == "little" or self._byteorder == "big":
-            return self._byteorder
+        if self._byteorder:
+            byteorder = self._byteorder
+        else:
+            byteorder = self._default_byteorder
+
+        if byteorder == "little" or byteorder == "big":
+            return byteorder
         else:
             return sys.byteorder
 
 
 class Integer(FieldType):
-    def __init__(
-        self,
-        size: int,
-        signed: bool,
-        byteorder: ByteOrder = "native",
-        to: Union[Callable, None] = None,
-    ):
-        super().__init__(byteorder, to)
+    def __init__(self, size: int, signed: bool, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.signed = signed
         self._size = size
 
@@ -93,13 +93,8 @@ class Integer(FieldType):
 
 
 class Float(FieldType):
-    def __init__(
-        self,
-        size: Literal[2, 4, 8],
-        byteorder: ByteOrder = "native",
-        to: Union[Callable, None] = None,
-    ):
-        super().__init__(byteorder, to)
+    def __init__(self, size: Literal[2, 4, 8], *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._size = size
 
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
@@ -129,6 +124,11 @@ class Format(FieldType):
         super().__init__(*args, **kwargs)
         self._fields: dict[str, FieldType] = {}
 
+        if self._byteorder:
+            byteorder = self._byteorder
+        else:
+            byteorder = self._default_byteorder
+
         for name, field in fields.items():
             if isinstance(field, FieldType):
                 self._fields[name] = field
@@ -142,6 +142,8 @@ class Format(FieldType):
                 self._fields[name] = getattr(field, "_field_type")
             else:
                 raise Exception(f"unknown field type '{field}' with key '{name}'")
+
+            self._fields[name]._default_byteorder = byteorder
 
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         value, bytes_read = self.read(data, allow_leftover=True, return_bytes=True)
@@ -167,7 +169,6 @@ class Format(FieldType):
 
 
 def format(cls: type) -> type:
-
 
     fields = {}
     for name, field in cls.__dict__.items():

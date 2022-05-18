@@ -79,14 +79,22 @@ class Array(FieldType):
         *args,
         **kwargs,
     ):
+        super().__init__(*args, **kwargs)
+
+        if self._byteorder:
+            byteorder = self._byteorder
+        else:
+            byteorder = self._default_byteorder
+
         if isinstance(element, FieldType):
+            element._default_byteorder = byteorder
             self.element = element
         elif issubclass(element, FieldType) and element != FieldType:
-            self.element = element()
+            element_instance = element()
+            element_instance._default_byteorder = byteorder
+            self.element = element_instance
         else:
             raise Exception(f"invalid array element {element}")
-
-        super().__init__(self.element._byteorder, *args, **kwargs)
 
         self._length = length
         self._length_bytes = length_bytes
