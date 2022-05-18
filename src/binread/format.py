@@ -1,7 +1,10 @@
+"""This module contains the main classes used in binread."""
+
 from abc import ABC, abstractmethod
 from struct import unpack
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Callable, Dict, Tuple, Union, Optional
 import sys
+
 
 try:
     from typing import Literal
@@ -10,6 +13,7 @@ except ImportError:
 
 
 ByteOrder = Literal["little", "big", "native"]
+"""Specifies the endiannes. `native` equals `sys.byteorder`."""
 
 
 class NotEnoughBytes(Exception):
@@ -18,16 +22,36 @@ class NotEnoughBytes(Exception):
 
 
 class FieldType(ABC):
+    """Abstract base class of all field types. Can be used to create a custom field type.
+
+    Args:
+       byteorder: specifies the endiannes of this type.
+       to: specifies a callable to transform the extracted data.
+    """
+
     def __init__(
         self,
         byteorder: ByteOrder = "native",
-        to: Union[Callable, None] = None,
+        to: Optional[Callable] = None,
     ):
         self._byteorder: ByteOrder = byteorder
         self.to = to
 
     @abstractmethod
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+        """Extracts the required bytes to construct this field.
+
+        Args:
+            data: The buffer to read.
+            fields: Any previous read fields used as context.
+
+        Returns:
+            (Any, int): The field value that is constructed and the bytes read.
+
+        Raises:
+            NotEnoughBytes: If not enough bytes are provided to construct this field.
+
+        """
         pass
 
     def read_field(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
@@ -128,6 +152,6 @@ class Format(FieldType):
             raise Exception("left over bytes")
 
         if return_bytes:
-            return result, total # type: ignore
+            return result, total  # type: ignore
         else:
             return result
