@@ -31,8 +31,8 @@ data = open('example.bin', 'rb').read()
 
 @format
 class Fmt:
- field0 = U16,
- field1 = Array(U16, length=5)
+  field0 = U16,
+  field1 = Array(U16, length=5)
 
 print(Fmt.read(data))
 # Fmt(field0=16, field1=[1, 2, 3, 4, 5])
