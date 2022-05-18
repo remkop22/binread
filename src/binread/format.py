@@ -81,7 +81,7 @@ class FieldType(ABC):
         ):
             return field()  # type: ignore
         elif hasattr(field, "_field_type"):
-            getattr(field, "_field_type")
+            return getattr(field, "_field_type")
         else:
             return None
 
@@ -181,9 +181,8 @@ class Format(FieldType):
 def formatclass(*args, **kwargs):
     with_args = True
 
-    if len(args) == 0 and isinstance(args[0], Callable):
+    if len(args) == 1 and isinstance(args[0], Callable):
         with_args = False
-        args = []
         kwargs = {}
 
     def decorator(cls):
