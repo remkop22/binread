@@ -178,6 +178,16 @@ class Format(FieldType):
             return result
 
 
+class FormatClass(Format):
+    def __init__(self, cls: type, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cls = cls
+
+    def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+        value, bytes_read = super().extract(data, fields)
+        return self._cls(**value), bytes_read
+
+
 def formatclass(*args, **kwargs):
     with_args = True
 
@@ -196,19 +206,16 @@ def formatclass(*args, **kwargs):
         for name in fields.keys():
             cls.__annotations__[name] = Any
 
-        cls = dataclass(cls)
+        dataclass_args = kwargs.get("dataclass_args", {})
 
-        fmt = Format(fields, *args, **kwargs)
+        cls = dataclass(**dataclass_args)(cls)
+
+        fmt = FormatClass(cls, fields, *args, **kwargs)
         setattr(cls, "_field_type", fmt)
 
         @staticmethod
         def read(*args, **kwargs):
-            field_dict = fmt.read(*args, **kwargs)
-
-            if isinstance(field_dict, tuple):
-                return cls(**field_dict[0]), field_dict[1]  # type: ignore
-            else:
-                return cls(**field_dict)
+            return fmt.read(*args, **kwargs)
 
         setattr(cls, "read", read)
 
