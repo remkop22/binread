@@ -133,6 +133,10 @@ class Format(FieldType):
                 self.fields[name] = field
             elif issubclass(field, FieldType) and field != FieldType:
                 self.fields[name] = field()  # type: ignore
+            elif hasattr(field, "_as_field"):
+                self.fields[name] = getattr(field, "_as_field")()
+            else:
+                raise Exception(f"unknown field type with key '{name}'")
 
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         value, bytes_read = self.read(data, allow_leftover=True, return_bytes=True)
@@ -155,3 +159,31 @@ class Format(FieldType):
             return result, total  # type: ignore
         else:
             return result
+
+
+def format(cls: type):
+
+    fields = {}
+    for name, field in cls.__dict__.items():
+        if _is_field_type(field):
+            fields[name] = fields
+
+    for name in fields.keys():
+        delattr(cls, name)
+
+    fmt = Format(fields)
+    setattr(cls, "_field_type", fmt)
+
+    @staticmethod
+    def read(*args, **kwargs):
+        return fmt.read(*args, **kwargs)
+
+    setattr(cls, "read", read)
+
+
+def _is_field_type(obj: Any) -> bool:
+    return (
+        isinstance(obj, FieldType)
+        or issubclass(obj, FieldType)
+        or hasattr(obj, "_as_field")
+    )
