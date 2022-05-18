@@ -6,7 +6,6 @@ Parse any binary format 📖
 <br> 
  
 <p align="center">
-<a href="https://binread.readthedocs.io/en/latest"><img src="https://img.shields.io/readthedocs/binread/stable"></a>
 <a href="https://github.com/remopas/binread/issues"><img src="https://img.shields.io/github/issues/remopas/binread"></a>
 <a href="https://pypi.org/project/binread/"><img src="https://img.shields.io/pypi/l/binread"></a>
 <a href="https://pypi.org/project/binread/"><img src="https://img.shields.io/pypi/dm/binread"></a>
