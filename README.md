@@ -24,11 +24,11 @@ Just create a class with each field representing a certain data-type and decorat
 
 ```python
 
-from binread import Format, U16, Array, format
+from binread import Format, U16, Array, formatclass
 
 data = open('example.bin', 'rb').read()
 
-@format
+@formatclass
 class Fmt:
   field0 = U16,
   field1 = Array(U16, length=5)
