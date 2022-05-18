@@ -1,6 +1,7 @@
 """This module contains the main classes used in binread."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from struct import unpack
 from typing import Any, Callable, Dict, Tuple, Union, Optional
 import sys
@@ -126,17 +127,21 @@ class Float(FieldType):
 class Format(FieldType):
     def __init__(self, fields: Dict[str, Union[FieldType, type]], *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields: dict[str, FieldType] = {}
+        self._fields: dict[str, FieldType] = {}
 
         for name, field in fields.items():
             if isinstance(field, FieldType):
-                self.fields[name] = field
-            elif issubclass(field, FieldType) and field != FieldType:
-                self.fields[name] = field()  # type: ignore
-            elif hasattr(field, "_as_field"):
-                self.fields[name] = getattr(field, "_as_field")()
+                self._fields[name] = field
+            elif (
+                isinstance(field, type)
+                and issubclass(field, FieldType)
+                and field != FieldType
+            ):
+                self._fields[name] = field()  # type: ignore
+            elif hasattr(field, "_field_type"):
+                self._fields[name] = getattr(field, "_field_type")
             else:
-                raise Exception(f"unknown field type with key '{name}'")
+                raise Exception(f"unknown field type '{field}' with key '{name}'")
 
     def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
         value, bytes_read = self.read(data, allow_leftover=True, return_bytes=True)
@@ -147,7 +152,7 @@ class Format(FieldType):
     ) -> Dict[str, Any]:
         result = {}
         total = 0
-        for name, field in self.fields.items():
+        for name, field in self._fields.items():
             result[name], bytes_read = field.read_field(data, result)
             data = data[bytes_read:]
             total += bytes_read
@@ -161,29 +166,35 @@ class Format(FieldType):
             return result
 
 
-def format(cls: type):
+def format(cls: type) -> type:
+
 
     fields = {}
     for name, field in cls.__dict__.items():
         if _is_field_type(field):
-            fields[name] = fields
+            fields[name] = field
 
     for name in fields.keys():
-        delattr(cls, name)
+        cls.__annotations__[name] = Any
+
+    cls = dataclass(cls)
 
     fmt = Format(fields)
     setattr(cls, "_field_type", fmt)
 
     @staticmethod
     def read(*args, **kwargs):
-        return fmt.read(*args, **kwargs)
+        field_dict = fmt.read(*args, **kwargs)
+        return cls(**field_dict)
 
     setattr(cls, "read", read)
+
+    return cls
 
 
 def _is_field_type(obj: Any) -> bool:
     return (
         isinstance(obj, FieldType)
-        or issubclass(obj, FieldType)
-        or hasattr(obj, "_as_field")
+        or (isinstance(obj, type) and issubclass(obj, FieldType))
+        or hasattr(obj, "_field_type")
     )
