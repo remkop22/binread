@@ -72,7 +72,7 @@ class Char(U8):
 class Array(FieldType):
     def __init__(
         self,
-        element: Union[FieldType, Type[FieldType]],
+        element: Union[FieldType, Type],
         length: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
         length_bytes: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
         terminator: Union[bytes, None] = None,
@@ -81,20 +81,13 @@ class Array(FieldType):
     ):
         super().__init__(*args, **kwargs)
 
-        if self._byteorder:
-            byteorder = self._byteorder
-        else:
-            byteorder = self._default_byteorder
+        element = self._to_instance(element)
 
-        if isinstance(element, FieldType):
-            element._default_byteorder = byteorder
-            self.element = element
-        elif issubclass(element, FieldType) and element != FieldType:
-            element_instance = element()
-            element_instance._default_byteorder = byteorder
-            self.element = element_instance
-        else:
+        if not element:
             raise Exception(f"invalid array element {element}")
+
+        element._default_byteorder = self._inheriting_byteorder()
+        self.element = element
 
         self._length = length
         self._length_bytes = length_bytes
@@ -177,21 +170,17 @@ class Array(FieldType):
 class Tuple(FieldType):
     def __init__(self, fields: Iterable[Union[FieldType, type]], *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._fields = []
+        self._fields = []  # type: ignore
+        byteorder = self._inheriting_byteorder()
 
         for field in fields:
-            if isinstance(field, FieldType):
-                self._fields.append(field)
-            elif (
-                isinstance(field, type)
-                and issubclass(field, FieldType)
-                and field != FieldType
-            ):
-                self._fields.append(field())  # type: ignore
-            elif hasattr(field, "_field_type"):
-                self._fields.append(getattr(field, "_field_type"))
-            else:
+            field = self._to_instance(field)
+
+            if not field:
                 raise Exception(f"unknown field type '{field}'")
+
+            field._default_byteorder = byteorder
+            self._fields.append(field)
 
         self._fields: TupleType[FieldType] = tuple(self._fields)
 
