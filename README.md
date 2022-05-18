@@ -6,7 +6,6 @@ Parse any binary format 📖
 <br> 
  
 <p align="center">
-<a href="https://binread.readthedocs.io/en/latest"><img src="https://img.shields.io/readthedocs/binread/stable"></a>
 <a href="https://github.com/remopas/binread/issues"><img src="https://img.shields.io/github/issues/remopas/binread"></a>
 <a href="https://pypi.org/project/binread/"><img src="https://img.shields.io/pypi/l/binread"></a>
 <a href="https://pypi.org/project/binread/"><img src="https://img.shields.io/pypi/dm/binread"></a>
@@ -21,26 +20,38 @@ pip install binread
 
 ## Usage
 
-Just create a dictionary mapping for each field and it's type and construct a `Format` object, then pass some bytes to `Format.read`:
+Just create a class with each field representing a certain data-type and decorate it with `format`, then pass some bytes to `<cls>.read()`:
 
 ```python
-from binread import Format, U16, Array
+
+from binread import Format, U16, Array, format
+
+data = open('example.bin', 'rb').read()
+
+@format
+class Fmt:
+  field0 = U16,
+  field1 = Array(U16, length=5)
+
+print(Fmt.read(data))
+# Fmt(field0=16, field1=[1, 2, 3, 4, 5])
+```
+Or create a dictionary mapping for each field and it's type and construct a `Format` object.
+```python
 
 fmt = Format({
   "field0": U16,
   "field1": Array(U16, length=5)
 })
 
-result = fmt.read(open('example.bin', 'rb').read())
-print(result)
-
+print(fmt.read(data))
 # {
 #   "field0": 16,
 #   "field1": [1, 2, 3, 4, 5]
 # }
 ```
 
-`Format.read` expects a `bytes` object and by default raises an exception if there are bytes left over. Set `allow_leftover=True` to disable this behaviour. If leftover bytes are allowed, the number of bytes that where read can be inspected with `return_bytes=True`.
+`Format.read()` expects a `bytes` object and by default raises an exception if there are bytes left over. Set `allow_leftover=True` to disable this behaviour. If leftover bytes are allowed, the number of bytes that where read can be inspected with `return_bytes=True`.
 
 ### Arrays
 
@@ -111,4 +122,4 @@ Binread supports the following types
 - Signed integers: `I8`, `I16`, `I32`, `I64`
 - Unsigned Integers: `U8`, `U16`, `U32`, `U64`
 - Floats: `F16`, `F32`, `F64`
-- Misc: `Char`, `String`, `Bool`
+- Misc: `Char`, `String`, `Bool`, `Tuple`
