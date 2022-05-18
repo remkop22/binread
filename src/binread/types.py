@@ -1,5 +1,6 @@
 from .format import Integer, FieldType, Float
-from typing import Any, Callable, Tuple, Type, Union, Dict
+from typing import Any, Callable, Iterable, Tuple as TupleType, Type, Union, Dict
+
 
 
 class U8(Integer):
@@ -114,7 +115,7 @@ class Array(FieldType):
 
     def extract_with_length(
         self, data: bytes, fields: Dict[str, Any], length: int
-    ) -> Tuple[Any, int]:
+    ) -> TupleType[Any, int]:
         result = [None] * length
         total = 0
         for i in range(length):
@@ -125,7 +126,7 @@ class Array(FieldType):
 
     def extract_with_terminator(
         self, data: bytes, fields: Dict[str, Any], terminator: bytes
-    ) -> Tuple[Any, int]:
+    ) -> TupleType[Any, int]:
         result = []
         total = 0
 
@@ -141,7 +142,7 @@ class Array(FieldType):
 
     def extract_with_length_bytes(
         self, data: bytes, fields: Dict[str, Any], length_bytes: int
-    ) -> Tuple[Any, int]:
+    ) -> TupleType[Any, int]:
         result = []
         total = 0
         while total < length_bytes:
@@ -151,7 +152,7 @@ class Array(FieldType):
             total += bytes_read
         return result, total
 
-    def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+    def extract(self, data: bytes, fields: Dict[str, Any]) -> TupleType[Any, int]:
         if self._length is not None:
             length = self.length(fields)
             return self.extract_with_length(data, fields, length)
@@ -166,6 +167,39 @@ class Array(FieldType):
             )
 
 
+class Tuple(FieldType):
+    def __init__(self, fields: Iterable[Union[FieldType, type]], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fields = []
+
+        for field in fields:
+            if isinstance(field, FieldType):
+                self._fields.append(field)
+            elif (
+                isinstance(field, type)
+                and issubclass(field, FieldType)
+                and field != FieldType
+            ):
+                self._fields.append(field())  # type: ignore
+            elif hasattr(field, "_field_type"):
+                self._fields.append(getattr(field, "_field_type"))
+            else:
+                raise Exception(f"unknown field type '{field}'")
+
+        self._fields: TupleType[FieldType] = tuple(self._fields)
+
+    def extract(self, data: bytes, fields: Dict[str, Any]) -> TupleType[Any, int]:
+        result = [None] * len(self._fields)
+        total = 0
+
+        for i, field in enumerate(self._fields):
+            result[i], bytes_read = field.read_field(data, fields)
+            data = data[bytes_read:]
+            total += bytes_read
+
+        return result, total
+
+
 class String(Array):
     def __init__(
         self,
@@ -176,6 +210,6 @@ class String(Array):
         super().__init__(U8, *args, **kwargs)
         self.encoding = encoding
 
-    def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
+    def extract(self, data: bytes, fields: Dict[str, Any]) -> TupleType[Any, int]:
         value, bytes_read = super().extract(data, fields)
         return bytes(value).decode(self.encoding), bytes_read
