@@ -1,5 +1,5 @@
 
-from .format import Format
+from .format import Format, format
 from .types import Array, String, Bool, Char
 from .types import I8, I16, I32, I64
 from .types import U8, U16, U32, U64

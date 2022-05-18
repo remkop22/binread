@@ -2,7 +2,6 @@ from .format import Integer, FieldType, Float
 from typing import Any, Callable, Iterable, Tuple as TupleType, Type, Union, Dict
 
 
-
 class U8(Integer):
     def __init__(self, *args, **kwargs):
         super().__init__(1, False, *args, **kwargs)
