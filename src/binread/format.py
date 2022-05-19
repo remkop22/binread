@@ -183,9 +183,14 @@ class FormatClass(Format):
         super().__init__(*args, **kwargs)
         self._cls = cls
 
-    def extract(self, data: bytes, fields: Dict[str, Any]) -> Tuple[Any, int]:
-        value, bytes_read = super().extract(data, fields)
-        return self._cls(**value), bytes_read
+    def read(self, *args, **kwargs) -> Dict[str, Any]:
+        result = super().read(*args, **kwargs)
+
+        if isinstance(result, tuple):
+            result, bytes_read = result
+            return self._cls(**result), bytes_read  # type: ignore
+        else:
+            return self._cls(**result)
 
 
 def formatclass(*args, **kwargs):

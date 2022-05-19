@@ -11,4 +11,5 @@ class TestFormat(unittest.TestCase):
             field1 = binread.U8
             field2 = binread.U16
 
-        FormatExample.read(b"\x00\xFF\x00")
+        value = FormatExample.read(b"\x00\xFF\x00")
+        self.assertEqual(type(value), FormatExample)
