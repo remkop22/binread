@@ -61,7 +61,7 @@ Using a previously defined field in the same `Format`.
 ```python
 Format({
   "length_key": U16,
-  "array": Array(U8, length="length_key"
+  "array": Array(U8, length="length_key")
 })
 ```
 
@@ -69,7 +69,7 @@ Using a function or lambda (with access to previously defined fields as a `dict`
 ```python
 Format({
   "length_key": U16,
-  "array": Array(U8, length=lambda x: x["length_key"] + 1
+  "array": Array(U8, length=lambda x: x["length_key"] + 1)
 })
 ```
 
@@ -77,14 +77,14 @@ When specifying `length_bytes` instead of `length` the bytes are counted instead
 ```python
 Format({
   "length_key": U16,
-  "array": Array(String(length=7, encoding='ascii'), length_bytes="length_key"
+  "array": Array(String(length=7, encoding='ascii'), length_bytes="length_key")
 })
 ```
 
 When dealing with a terminated array, `terminator` can be used to define when to stop.
 ```python
 fmt = Format({
-  "array": Array(U8, terminator=b'\x00'
+  "array": Array(U8, terminator=b'\x00')
 })
 ```
 The terminator is checked at the first byte or the byte immediately after an element.
