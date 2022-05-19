@@ -1,5 +1,7 @@
-from .format import Integer, FieldType, Float, NotEnoughBytes
-from typing import Any, Callable, Iterable, Tuple as TupleType, Type, Union, Dict
+from binread.reader import ByteReader
+from .format import Integer, FieldType, Float
+from typing import Any, Callable, Iterable, List, Tuple as TupleType, Type, Union, Dict
+from typing import SupportsBytes
 
 
 class U8(Integer):
@@ -58,15 +60,13 @@ class F64(Float):
 
 
 class Bool(U8):
-    def extract(self, data: bytes, fields: Dict[str, Any]):
-        value, bytes_read = super().extract(data, fields)
-        return bool(value), bytes_read
+    def extract(self, data: ByteReader, fields: Dict[str, Any]) -> bool:
+        return bool(super().extract(data, fields))
 
 
 class Char(U8):
-    def extract(self, data: bytes, fields: Dict[str, Any]):
-        value, bytes_read = super().extract(data, fields)
-        return chr(value), bytes_read
+    def extract(self, data: ByteReader, fields: Dict[str, Any]) -> str:
+        return chr(super().extract(data, fields))
 
 
 class Array(FieldType):
@@ -75,92 +75,77 @@ class Array(FieldType):
         element: Union[FieldType, Type],
         length: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
         length_bytes: Union[int, str, Callable[[Dict[str, Any]], int], None] = None,
-        terminator: Union[bytes, None] = None,
+        terminator: Union[Any, None] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
-        element = self._to_instance(element)
+        element = self.to_instance(element)
 
         if not element:
             raise Exception(f"invalid array element {element}")
 
-        element._default_byteorder = self._inheriting_byteorder()
+        element.default_byteorder = self.inheriting_byteorder()
         self.element = element
 
-        self._length = length
-        self._length_bytes = length_bytes
-        self._terminator = terminator
+        self.length = length
+        self.length_bytes = length_bytes
+        self.terminator = terminator
 
-    def length(self, fields: Dict[str, Any]) -> int:
-        if isinstance(self._length, int):
-            return self._length
-        elif isinstance(self._length, str):
-            return fields[self._length]
-        elif isinstance(self._length, Callable):
-            return self._length(fields)
+    def get_length(self, fields: Dict[str, Any]) -> int:
+        if isinstance(self.length, int):
+            return self.length
+        elif isinstance(self.length, str):
+            return fields[self.length]
+        elif isinstance(self.length, Callable):
+            return self.length(fields)
         else:
-            raise Exception(f"invalid length specifier '{self._length}'")
+            raise Exception(f"invalid length specifier '{self.length}'")
 
-    def length_bytes(self, fields: Dict[str, Any]) -> int:
-        if isinstance(self._length_bytes, int):
-            return self._length_bytes
-        elif isinstance(self._length_bytes, str):
-            return fields[self._length_bytes]
-        elif isinstance(self._length_bytes, Callable):
-            return self._length_bytes(fields)
+    def get_length_bytes(self, fields: Dict[str, Any]) -> int:
+        if isinstance(self.length_bytes, int):
+            return self.length_bytes
+        elif isinstance(self.length_bytes, str):
+            return fields[self.length_bytes]
+        elif isinstance(self.length_bytes, Callable):
+            return self.length_bytes(fields)
         else:
-            raise Exception(f"invalid length specifier '{self._length}'")
+            raise Exception(f"invalid length specifier '{self.length_bytes}'")
 
-    def extract_with_length(
-        self, data: bytes, fields: Dict[str, Any], length: int
-    ) -> TupleType[Any, int]:
-        result = [None] * length
-        total = 0
-        for i in range(length):
-            result[i], bytes_read = self.element.read_field(data, {})
-            data = data[bytes_read:]
-            total += bytes_read
-        return result, total
+    def extract_with_length(self, data: ByteReader, length: int) -> List[Any]:
+        return [self.element.read_field(data, {}) for i in range(length)]
 
-    def extract_with_terminator(
-        self, data: bytes, fields: Dict[str, Any], terminator: bytes
-    ) -> TupleType[Any, int]:
+    def extract_with_terminator(self, data: ByteReader, terminator: Any) -> List[Any]:
         result = []
-        total = 0
 
-        while not data.startswith(terminator):
-            value, bytes_read = self.element.read_field(data, {})
-            result.append(value)
-            data = data[bytes_read:]
-            total += bytes_read
+        while True:
+            result.append(self.element.read_field(data, {}))
 
-        total += len(terminator)
+            if result[-1] == terminator:
+                break
 
-        return result, total
+        return result
 
     def extract_with_length_bytes(
-        self, data: bytes, fields: Dict[str, Any], length_bytes: int
-    ) -> TupleType[Any, int]:
+        self, data: ByteReader, length_bytes: int
+    ) -> List[Any]:
         result = []
-        total = 0
-        while total < length_bytes:
-            value, bytes_read = self.element.read_field(data, {})
-            result.append(value)
-            data = data[bytes_read:]
-            total += bytes_read
-        return result, total
+        start = data.tell()
+        while (data.tell() - start) < length_bytes:
+            result.append(self.element.read_field(data, {}))
 
-    def extract(self, data: bytes, fields: Dict[str, Any]) -> TupleType[Any, int]:
-        if self._length is not None:
-            length = self.length(fields)
-            return self.extract_with_length(data, fields, length)
-        elif self._terminator is not None:
-            return self.extract_with_terminator(data, fields, self._terminator)
-        elif self._length_bytes:
-            length_bytes = self.length_bytes(fields)
-            return self.extract_with_length_bytes(data, fields, length_bytes)
+        return result
+
+    def extract(self, data: ByteReader, fields: Dict[str, Any]) -> List[Any]:
+        if self.length is not None:
+            length = self.get_length(fields)
+            return self.extract_with_length(data, length)
+        elif self.terminator is not None:
+            return self.extract_with_terminator(data, self.terminator)
+        elif self.length_bytes is not None:
+            length_bytes = self.get_length_bytes(fields)
+            return self.extract_with_length_bytes(data, length_bytes)
         else:
             raise Exception(
                 "array must either have a length, length_bytes or a terminator"
@@ -177,64 +162,61 @@ class Bytes(Array):
     ):
         super().__init__(U8, length, terminator=terminator, *args, **kwargs)
 
-    def extract_with_length(
-        self, data: bytes, fields: Dict[str, Any], length: int
-    ) -> TupleType[Any, int]:
-        if length > len(data):
-            raise NotEnoughBytes()
-
-        return data[:length], length
+    def extract_with_length(self, data: ByteReader, length: int) -> bytes:
+        return data.read_bytes(length)
 
     def extract_with_terminator(
-        self, data: bytes, fields: Dict[str, Any], terminator: bytes
-    ) -> TupleType[Any, int]:
-        length = data.find(terminator)
+        self,
+        data: ByteReader,
+        terminator: bytes,
+    ) -> bytes:
+        result = bytearray()
 
-        if length == -1:
-            raise NotEnoughBytes()
+        while True:
+            element = data.read_bytes(len(terminator))
+            result += element
+            if element == terminator:
+                break
 
-        return data[:length], length + len(terminator)
+        return bytes(result)
 
 
 class Tuple(FieldType):
     def __init__(self, fields: Iterable[Union[FieldType, type]], *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._fields = []  # type: ignore
-        byteorder = self._inheriting_byteorder()
+        self.fields = []  # type: ignore
+        byteorder = self.inheriting_byteorder()
 
         for field in fields:
-            field = self._to_instance(field)
+            field = self.to_instance(field)
 
             if not field:
                 raise Exception(f"unknown field type '{field}'")
 
-            field._default_byteorder = byteorder
-            self._fields.append(field)
+            field.default_byteorder = byteorder
+            self.fields.append(field)
 
         self._fields: TupleType[FieldType] = tuple(self._fields)
 
-    def extract(self, data: bytes, fields: Dict[str, Any]) -> TupleType[Any, int]:
+    def extract(self, data: ByteReader, fields: Dict[str, Any]) -> TupleType[Any, ...]:
         result = [None] * len(self._fields)
-        total = 0
 
         for i, field in enumerate(self._fields):
-            result[i], bytes_read = field.read_field(data, fields)
-            data = data[bytes_read:]
-            total += bytes_read
+            result[i] = field.read_field(data, fields)
 
-        return result, total
+        return tuple(result)
 
 
-class String(Array):
+class String(Bytes):
     def __init__(
         self,
         *args,
         encoding: str = "utf-8",
         **kwargs,
     ):
-        super().__init__(U8, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.encoding = encoding
 
-    def extract(self, data: bytes, fields: Dict[str, Any]) -> TupleType[Any, int]:
-        value, bytes_read = super().extract(data, fields)
-        return bytes(value).decode(self.encoding), bytes_read
+    def extract(self, data: ByteReader, fields: Dict[str, Any]) -> str:
+        value = super().extract(data, fields)
+        return value.decode(self.encoding)  # type: ignore
