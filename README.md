@@ -20,7 +20,7 @@ pip install binread
 
 ## Usage
 
-Just create a class with each field representing a certain data-type and decorate it with `format`, then pass some bytes to `<cls>.read()`:
+Just create a class with each field representing a certain data-type and decorate it with `formatclass`, then pass some bytes to `<cls>.read()`:
 
 ```python
 
@@ -110,7 +110,7 @@ Format({
 
 ### Byte Order
 
-Any field type accepts a `byteorder` value in it's constructor, which can be `little`, `big` or `native` (default).
+Any field type (or `formatclass` decorator) accepts a `byteorder` value in it's constructor, which can be `little`, `big` or `native` (default). The fields inside of `Format`, `Tuple`, `Array` and `formatclass` inherit it's parent byteorder if one is not explicitly given to that field.
 
 **No** padding or alignment is done at all. For packing C structures with padding and alignment see [struct](https://docs.python.org/3/library/struct.html)
 
@@ -118,8 +118,8 @@ Any field type accepts a `byteorder` value in it's constructor, which can be `li
 
 Binread supports the following types
 
-- Structural: `Array` and `Format`
+- Structural: `Array`, `Tuple` and `Format`
 - Signed integers: `I8`, `I16`, `I32`, `I64`
 - Unsigned Integers: `U8`, `U16`, `U32`, `U64`
 - Floats: `F16`, `F32`, `F64`
-- Misc: `Char`, `String`, `Bool`, `Tuple`
+- Misc: `Char`, `String`, `Bool`, `Bytes`
